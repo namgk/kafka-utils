@@ -1,0 +1,19 @@
+{
+  "name": "kb-kafka-utils",
+  "version": "1.0.0",
+  "description": "Utility library for Apache Kafka, complementing node-kafka",
+  "main": "index.js",
+  "scripts": {
+    "test": "test.js"
+  },
+  "dependencies": {
+    "kafka-node": "^0.2.27",
+    "q": "^1.4.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:namgk/kafka-utils.git"
+  },
+  "author": "Nam Giang",
+  "license": "MIT"
+}
