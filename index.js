@@ -1,40 +1,40 @@
 var Q = require('q'),
   kafka = require('kafka-node');
 
-function getEarliestAvailOffset(offsetClient, topics){
+function getAvailOffset(offsetClient, topics, earliest){
   var d = Q.defer();
 
   var wellformedTopics = [];
 
   topics.forEach(function(topic){
-  	var wellformedTopic = {
-  		topic: "",
-  		partition: 0,
-  		time: -2,
-  		maxNum: 1
-  	};
+    var wellformedTopic = {
+      topic: "",
+      partition: 0,
+      time: earliest ? -2 : -1,
+      maxNum: 1
+    };
 
-  	if (typeof topic === 'string'){
-  		wellformedTopic.topic = topic;
-  		wellformedTopics.push(wellformedTopic);
-  		return;
-  	} 
+    if (typeof topic === 'string'){
+      wellformedTopic.topic = topic;
+      wellformedTopics.push(wellformedTopic);
+      return;
+    } 
 
-  	if (topic.topic)
-  		wellformedTopic.topic = topic.topic;
-  	else
-  		d.reject('topic must have a name');
+    if (topic.topic)
+      wellformedTopic.topic = topic.topic;
+    else
+      d.reject('topic must have a name');
 
-  	if (topic.partition)
-  		wellformedTopic.partition = topic.partition;
+    if (topic.partition)
+      wellformedTopic.partition = topic.partition;
 
-  	if (topic.time)
-  		wellformedTopic.time = topic.time;
+    if (topic.time)
+      wellformedTopic.time = topic.time;
 
-  	if (topic.maxNum)
-  		wellformedTopic.maxNum = topic.maxNum;
+    if (topic.maxNum)
+      wellformedTopic.maxNum = topic.maxNum;
 
-  	wellformedTopics.push(wellformedTopic);
+    wellformedTopics.push(wellformedTopic);
 
   })
 
@@ -46,7 +46,14 @@ function getEarliestAvailOffset(offsetClient, topics){
   });
 
   return d.promise;
-  
+}
+
+function getEarliestAvailOffset(offsetClient, topics){
+  return getAvailOffset(offsetClient, topics, true);
+}
+
+function getLatestAvailOffset(offsetClient, topics){
+  return getAvailOffset(offsetClient, topics, false);
 }
 
 function getLastCommit(offsetClient, topics, groupId){
@@ -101,6 +108,16 @@ function newTopic(earliestAvailOffsetData, lastCommitData, topic){
   return topicToBeAdd;
 }
 
+function buildTopicsWithOffset(topics, offsetData){
+  var topicWithOffsets = [];
+
+  topics.forEach(function(topic){
+    topicWithOffsets.push({topic: topic, offset: offsetData[topic]['0'][0]});
+  });
+
+  return topicWithOffsets;
+}
+
 function KafkaUtils(groupId, zookeeper){
   this.groupId = groupId;
   if (typeof zookeeper === 'string')
@@ -108,6 +125,30 @@ function KafkaUtils(groupId, zookeeper){
   else
   	this.client = zookeeper;
   this.offsetClient = new kafka.Offset(this.client)
+}
+
+KafkaUtils.prototype.buildEarliestOffsets = function(topics){
+  var d = Q.defer();
+
+  getEarliestAvailOffset(this.offsetClient, topics).then(function(data){
+    d.resolve(buildTopicsWithOffset(topics, data));
+  }, function(err){
+    d.reject(err)
+  })
+
+  return d.promise;
+}
+
+KafkaUtils.prototype.buildLatestOffsets = function(topics){
+  var d = Q.defer();
+
+  getLatestAvailOffset(this.offsetClient, topics).then(function(data){
+    d.resolve(buildTopicsWithOffset(topics, data));
+  }, function(err){
+    d.reject(err)
+  })
+
+  return d.promise;
 }
 
 KafkaUtils.prototype.buildOffsets = function(topics){
